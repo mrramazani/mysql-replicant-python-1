@@ -17,7 +17,7 @@ from mysql.replicant.config import (
     ConfigManagerFile,
 )
 
-servers = [Server('master',
+servers = [Server('main',
                   server_id=1,
                   sql_user=User("mysql_replicant"),
                   ssh_user=User("mats"),
@@ -25,25 +25,25 @@ servers = [Server('master',
                   port=3307,
                   socket='/var/run/mysqld/mysqld1.sock',
                   ),
-           Server('slave1', server_id=2,
+           Server('subordinate1', server_id=2,
                   sql_user=User("mysql_replicant"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3308,
                   socket='/var/run/mysqld/mysqld2.sock'),
-           Server('slave2', 
+           Server('subordinate2', 
                   sql_user=User("mysql_replicant"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3309,
                   socket='/var/run/mysqld/mysqld3.sock'),
-           Server('slave3',
+           Server('subordinate3',
                   sql_user=User("mysql_replicant"),
                   ssh_user=User("mats"),
                   machine=Linux(),
                   port=3310,
                   socket='/var/run/mysqld/mysqld4.sock')]
 
-master = servers[0]
+main = servers[0]
 common = servers[0]              # Where the common database is stored
-slaves = servers[1:]
+subordinates = servers[1:]

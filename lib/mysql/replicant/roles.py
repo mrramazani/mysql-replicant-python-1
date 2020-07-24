@@ -39,7 +39,7 @@ class Role(object):
         server.
 
         The replication user will then be set as an attribute of the
-        server so that it is available for slaves connecting to the
+        server so that it is available for subordinates connecting to the
         server."""
         try:
             server.sql("DROP USER %s", (user.name))
@@ -91,9 +91,9 @@ class Vagabond(Role):
     def unimbue(self, server):
         pass
 
-class Master(Role):
-    """A master slave is a server whose purpose is to act as a
-    master. It means that it has a replication user with the right
+class Main(Role):
+    """A main subordinate is a server whose purpose is to act as a
+    main. It means that it has a replication user with the right
     privileges and also have the binary log activated.
 
     There is a "smart" way to update the password of the user::
@@ -112,7 +112,7 @@ class Master(Role):
     """
 
     def __init__(self, repl_user):
-        super(Master, self).__init__()
+        super(Main, self).__init__()
         self.__user = repl_user
 
     def imbue(self, server):
@@ -143,9 +143,9 @@ class Final(Role):
     The purpose of such a server is only to answer queries but never
     to change role."""
 
-    def __init__(self, master):
+    def __init__(self, main):
         super(Final, self).__init__()
-        self.__master = master
+        self.__main = main
 
     def imbue(self, server):
         # Fetch and update the configuration file
@@ -156,25 +156,25 @@ class Final(Role):
         # Put the new configuration in place
         server.stop().replace_config(config).start()
 
-        server.repl_user = self.__master.repl_user
+        server.repl_user = self.__main.repl_user
 
 class Relay(Role):
     """A relay server is a server whose sole purpose is to forward
-    events from the binary log to slaves that are able to answer
+    events from the binary log to subordinates that are able to answer
     queries.  The server has a binary log and also writes events
-    executed by the slave thread to the binary log.  Since it is not
+    executed by the subordinate thread to the binary log.  Since it is not
     necessary to be able to answer queries, all tables use the
     BLACKHOLE engine."""
 
-    def __init__(self, master):
+    def __init__(self, main):
         super(Relay, self).__init__()
-        self.__master = master
+        self.__main = main
 
     def imbue(self, server):
         config = server.fetch_config()
         self._set_server_id(server, config)
         self._enable_binlog(server)
-        config.set('log-slave-updates')
+        config.set('log-subordinate-updates')
         server.stop().replace_config(config).start()
         server.sql("SET SQL_LOG_BIN = 0")
         for row in server.sql("SHOW DATABASES"):

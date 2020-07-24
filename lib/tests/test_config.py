@@ -30,8 +30,8 @@ class TestConfigFile(unittest.TestCase):
 
         self.assertEqual(config.get('user'), 'mysql')
         self.assertEqual(config.get('log-bin'),
-                         '/var/log/mysql/master-bin')
-        self.assertEqual(config.get('slave-skip-start'), None)
+                         '/var/log/mysql/main-bin')
+        self.assertEqual(config.get('subordinate-skip-start'), None)
 
     def testFetchReplace(self):
         "Fetching a configuration file, adding some options, and replacing it"

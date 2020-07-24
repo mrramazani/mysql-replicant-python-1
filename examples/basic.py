@@ -10,32 +10,32 @@ rootpath = os.path.split(os.path.dirname(os.path.abspath(__file__)))[0]
 sys.path.append(rootpath)
 
 from mysql.replicant.commands import (
-    fetch_master_pos,
-    fetch_slave_pos,
+    fetch_main_pos,
+    fetch_subordinate_pos,
     )
 
 from mysql.replicant.errors import (
-    NotMasterError,
-    NotSlaveError,
+    NotMainError,
+    NotSubordinateError,
     )
 
 import my_deployment
 
 print "# Executing 'show databases'"
-for db in my_deployment.master.sql("show databases"):
+for db in my_deployment.main.sql("show databases"):
     print db["Database"]
 
 print "# Executing 'ls'"
-for line in my_deployment.master.ssh(["ls"]):
+for line in my_deployment.main.ssh(["ls"]):
     print line
 
 try:
-    print "Master position is:", fetch_master_pos(my_deployment.master)
-except NotMasterError:
-    print my_deployment.master.name, "is not configured as a master"
+    print "Main position is:", fetch_main_pos(my_deployment.main)
+except NotMainError:
+    print my_deployment.main.name, "is not configured as a main"
 
-for slave in my_deployment.slaves:
+for subordinate in my_deployment.subordinates:
     try:
-        print "Slave position is:", fetch_slave_pos(slave)
-    except NotSlaveError:
-        print slave.name, "not configured as a slave"
+        print "Subordinate position is:", fetch_subordinate_pos(subordinate)
+    except NotSubordinateError:
+        print subordinate.name, "not configured as a subordinate"

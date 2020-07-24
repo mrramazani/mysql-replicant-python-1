@@ -13,23 +13,23 @@ from mysql.replicant.server import (
     User,
     )
 from mysql.replicant.roles import (
-    Master,
+    Main,
     Final,
     )
 from mysql.replicant.commands import (
-    change_master,
+    change_main,
     )
 
-master_role = Master(User("repl_user", "xyzzy"))
-final_role = Final(my_deployment.master)
+main_role = Main(User("repl_user", "xyzzy"))
+final_role = Final(my_deployment.main)
 
 try:
-    master_role.imbue(my_deployment.master)
+    main_role.imbue(my_deployment.main)
 except IOError, e:
-    print "Cannot imbue master with Master role:", e
+    print "Cannot imbue main with Main role:", e
 
-for slave in my_deployment.slaves:
+for subordinate in my_deployment.subordinates:
     try:
-        final_role.imbue(slave)
+        final_role.imbue(subordinate)
     except IOError, e:
-        print "Cannot imbue slave with Final role:", e
+        print "Cannot imbue subordinate with Final role:", e

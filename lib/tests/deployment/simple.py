@@ -7,7 +7,7 @@
 from mysql.replicant.server import Server
 from mysql.replicant.common import User
 from mysql.replicant.machine import Linux
-from mysql.replicant.roles import Master, Final
+from mysql.replicant.roles import Main, Final
 
 import time, os.path
 
@@ -37,18 +37,18 @@ def _cnf(name):
     test_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(test_dir, '..', name + ".cnf")
 
-master = Server(server_id=1, name="mysqld1",
+main = Server(server_id=1, name="mysqld1",
                 sql_user=_replicant_user,
                 ssh_user=User("mysql"),
-                machine=Linux(), role=Master(_repl_user),
+                machine=Linux(), role=Main(_repl_user),
                 port=3307,
                 socket='/var/run/mysqld/mysqld1.sock',
                 defaults_file=_cnf("mysqld1"),
                 config_section="mysqld1")
-slaves = [Server(server_id=2, name="mysqld2",
+subordinates = [Server(server_id=2, name="mysqld2",
                  sql_user=_replicant_user,
                  ssh_user=User("mysql"),
-                 machine=Linux(), role=Final(master),
+                 machine=Linux(), role=Final(main),
                  port=3308,
                  socket='/var/run/mysqld/mysqld2.sock',
                  defaults_file=_cnf("mysqld2"),
@@ -56,7 +56,7 @@ slaves = [Server(server_id=2, name="mysqld2",
           Server(server_id=3, name="mysqld3",
                  sql_user=_replicant_user,
                  ssh_user=User("mysql"),
-                 machine=Linux(), role=Final(master),
+                 machine=Linux(), role=Final(main),
                  port=3309,
                  socket='/var/run/mysqld/mysqld3.sock',
                  defaults_file=_cnf("mysqld3"),
@@ -64,9 +64,9 @@ slaves = [Server(server_id=2, name="mysqld2",
           Server(server_id=4, name="mysqld4",
                  sql_user=_replicant_user,
                  ssh_user=User("mysql"),
-                 machine=Linux(), role=Final(master),
+                 machine=Linux(), role=Final(main),
                  port=3310,
                  socket='/var/run/mysqld/mysqld4.sock',
                  defaults_file=_cnf("mysqld4"),
                  config_section="mysqld4")]
-servers = [master] + slaves
+servers = [main] + subordinates
