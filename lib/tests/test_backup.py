@@ -23,22 +23,22 @@ class TestBackup(unittest.TestCase):
     def __init__(self, methodName, options={}):
         super(TestBackup, self).__init__(methodName)
         my = tests.utils.load_deployment(options['deployment'])
-        self.master = my.master
+        self.main = my.main
 
     def setUp(self):
         self.backup = PhysicalBackup("file:/tmp/backup.tar.gz")
         
     def testPhysicalBackup(self):
-        self.master.sql("CREATE TABLE IF NOT EXISTS dummy (a INT)", db="test")
-        self.master.sql("INSERT INTO dummy VALUES (1),(2)", db="test")
-        for row in self.master.sql("SELECT * FROM dummy", db="test"):
+        self.main.sql("CREATE TABLE IF NOT EXISTS dummy (a INT)", db="test")
+        self.main.sql("INSERT INTO dummy VALUES (1),(2)", db="test")
+        for row in self.main.sql("SELECT * FROM dummy", db="test"):
             self.assertTrue(row['a'] in [1, 2])
-        self.backup.backup_server(self.master, ['test'])
-        self.master.sql("DROP TABLE dummy", db="test")
-        self.backup.restore_server(self.master)
-        tbls = self.master.sql("SHOW TABLES", db="test")
+        self.backup.backup_server(self.main, ['test'])
+        self.main.sql("DROP TABLE dummy", db="test")
+        self.backup.restore_server(self.main)
+        tbls = self.main.sql("SHOW TABLES", db="test")
         self.assertTrue('dummy' in [t["Tables_in_test"] for t in tbls])
-        self.master.sql("DROP TABLE dummy", db="test")
+        self.main.sql("DROP TABLE dummy", db="test")
 
 def suite(options={}):
     if not options['deployment']:

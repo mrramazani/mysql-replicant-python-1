@@ -28,9 +28,9 @@ class TestPosition(unittest.TestCase):
         
     def testSimple(self):
         from mysql.replicant.server import Position
-        positions = [Position('master-bin.00001', 4711),
-                     Position('master-bin.00001', 9393),
-                     Position('master-bin.00002', 102)]
+        positions = [Position('main-bin.00001', 4711),
+                     Position('main-bin.00001', 9393),
+                     Position('main-bin.00002', 102)]
  
         for position in positions:
             self._checkPos(position)

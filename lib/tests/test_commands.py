@@ -15,7 +15,7 @@ import unittest
 
 from mysql.replicant.roles import (
     Final,
-    Master,
+    Main,
     )
 
 from mysql.replicant.server import (
@@ -23,11 +23,11 @@ from mysql.replicant.server import (
     )
 
 from mysql.replicant.commands import (
-    change_master,
-    fetch_master_position,
-    fetch_slave_position,
-    slave_wait_and_stop,
-    slave_wait_for_pos,
+    change_main,
+    fetch_main_position,
+    fetch_subordinate_position,
+    subordinate_wait_and_stop,
+    subordinate_wait_for_pos,
     )
 
 from tests.utils import load_deployment
@@ -38,90 +38,90 @@ class TestCommands(unittest.TestCase):
     def __init__(self, methodNames, options={}):
         super(TestCommands, self).__init__(methodNames)
         my = load_deployment(options['deployment'])
-        self.master = my.master
-        self.masters = my.servers[0:1]
-        self.slaves = my.servers[2:3]
+        self.main = my.main
+        self.mains = my.servers[0:1]
+        self.subordinates = my.servers[2:3]
 
     def setUp(self):
 
-        master_role = Master(User("repl_user", "xyzzy"))
-        for master in self.masters:
-            master_role.imbue(master)
+        main_role = Main(User("repl_user", "xyzzy"))
+        for main in self.mains:
+            main_role.imbue(main)
 
-        final_role = Final(self.masters[0])
-        for slave in self.slaves:
+        final_role = Final(self.mains[0])
+        for subordinate in self.subordinates:
             try:
-                final_role.imbue(slave)
+                final_role.imbue(subordinate)
             except IOError:
                 pass
 
-    def testChangeMaster(self):
-        "Test the change_master function"
-        for slave in self.slaves:
-            change_master(slave, self.master)
+    def testChangeMain(self):
+        "Test the change_main function"
+        for subordinate in self.subordinates:
+            change_main(subordinate, self.main)
 
-        self.master.sql("DROP TABLE IF EXISTS t1", db="test")
-        self.master.sql("CREATE TABLE t1 (a INT)", db="test")
-        self.master.disconnect()
+        self.main.sql("DROP TABLE IF EXISTS t1", db="test")
+        self.main.sql("CREATE TABLE t1 (a INT)", db="test")
+        self.main.disconnect()
 
-        for slave in self.slaves:
-            result = slave.sql("SHOW TABLES", db="test")
+        for subordinate in self.subordinates:
+            result = subordinate.sql("SHOW TABLES", db="test")
 
-    def testSlaveWaitForPos(self):
-        "Test the slave_wait_for_pos function"
+    def testSubordinateWaitForPos(self):
+        "Test the subordinate_wait_for_pos function"
 
-        slave = self.slaves[0]
-        master = self.master
+        subordinate = self.subordinates[0]
+        main = self.main
 
-        slave.sql("STOP SLAVE")
-        pos1 = fetch_master_position(master)
-        change_master(slave, master, pos1)
-        slave.sql("START SLAVE")
+        subordinate.sql("STOP SLAVE")
+        pos1 = fetch_main_position(main)
+        change_main(subordinate, main, pos1)
+        subordinate.sql("START SLAVE")
 
-        master.sql("DROP TABLE IF EXISTS t1", db="test")
-        master.sql("CREATE TABLE t1 (a INT)", db="test")
-        master.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
-        pos2 = fetch_master_position(master)
-        slave_wait_for_pos(slave, pos2)
-        pos3 = fetch_slave_position(slave)
+        main.sql("DROP TABLE IF EXISTS t1", db="test")
+        main.sql("CREATE TABLE t1 (a INT)", db="test")
+        main.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
+        pos2 = fetch_main_position(main)
+        subordinate_wait_for_pos(subordinate, pos2)
+        pos3 = fetch_subordinate_position(subordinate)
         self.assert_(pos3 >= pos2)
 
-    def testSlaveWaitAndStop(self):
-        "Test the slave_wait_and_stop function"
+    def testSubordinateWaitAndStop(self):
+        "Test the subordinate_wait_and_stop function"
 
-        slave = self.slaves[0]
-        master = self.master
+        subordinate = self.subordinates[0]
+        main = self.main
 
-        slave.sql("STOP SLAVE")
-        pos1 = fetch_master_position(master)
-        change_master(slave, master, pos1)
-        slave.sql("START SLAVE")
+        subordinate.sql("STOP SLAVE")
+        pos1 = fetch_main_position(main)
+        change_main(subordinate, main, pos1)
+        subordinate.sql("START SLAVE")
 
-        master.sql("DROP TABLE IF EXISTS t1", db="test")
-        master.sql("CREATE TABLE t1 (a INT)", db="test")
-        master.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
-        pos2 = fetch_master_position(master)
-        master.sql("INSERT INTO t1 VALUES (3),(4)", db="test")
-        pos3 = fetch_master_position(master)
-        slave_wait_and_stop(slave, pos2)
-        pos4 = fetch_slave_position(slave)
+        main.sql("DROP TABLE IF EXISTS t1", db="test")
+        main.sql("CREATE TABLE t1 (a INT)", db="test")
+        main.sql("INSERT INTO t1 VALUES (1),(2)", db="test")
+        pos2 = fetch_main_position(main)
+        main.sql("INSERT INTO t1 VALUES (3),(4)", db="test")
+        pos3 = fetch_main_position(main)
+        subordinate_wait_and_stop(subordinate, pos2)
+        pos4 = fetch_subordinate_position(subordinate)
         self.assertEqual(pos2, pos4)
-        row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
+        row = subordinate.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 2)
-        slave.sql("START SLAVE")
-        slave_wait_and_stop(slave, pos3)
-        row = slave.sql("SELECT COUNT(*) AS count FROM t1", db="test")
+        subordinate.sql("START SLAVE")
+        subordinate_wait_and_stop(subordinate, pos3)
+        row = subordinate.sql("SELECT COUNT(*) AS count FROM t1", db="test")
         self.assertEqual(row['count'], 4)
 
-    def testSlaveStatusWaitUntil(self):
-        "Test slave_status_wait_until"
-        slave = self.slaves[0]
-        master = self.master
+    def testSubordinateStatusWaitUntil(self):
+        "Test subordinate_status_wait_until"
+        subordinate = self.subordinates[0]
+        main = self.main
 
-        slave.sql("STOP SLAVE")
-        pos1 = fetch_master_position(master)
-        change_master(slave, master, pos1)
-        slave.sql("START SLAVE")
+        subordinate.sql("STOP SLAVE")
+        pos1 = fetch_main_position(main)
+        change_main(subordinate, main, pos1)
+        subordinate.sql("START SLAVE")
         
 
 def suite(options={}):

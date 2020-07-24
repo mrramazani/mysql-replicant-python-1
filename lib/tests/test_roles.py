@@ -21,9 +21,9 @@ class TestRoles(unittest.TestCase):
     def __init__(self, methodName, options):
         super(TestRoles, self).__init__(methodName)
         my = tests.utils.load_deployment(options['deployment'])
-        self.master = my.master
-        self.slave = my.slaves[0]
-        self.slaves = my.slaves
+        self.main = my.main
+        self.subordinate = my.subordinates[0]
+        self.subordinates = my.subordinates
 
     def setUp(self):
         pass
@@ -32,22 +32,22 @@ class TestRoles(unittest.TestCase):
         # We are likely to get an IOError because we cannot write the
         # configuration file, but this is OK.
         try:
-            role.imbue(self.master)
+            role.imbue(self.main)
         except IOError:
             pass
 
-    def testMasterRole(self):
-        "Test how the master role works"
+    def testMainRole(self):
+        "Test how the main role works"
         user = mysql.replicant.server.User("repl_user", "xyzzy")
-        self._imbueRole(mysql.replicant.roles.Master(user))
+        self._imbueRole(mysql.replicant.roles.Main(user))
         
-    def testSlaveRole(self):
-        "Test that the slave role works"
-        self._imbueRole(mysql.replicant.roles.Final(self.master))
+    def testSubordinateRole(self):
+        "Test that the subordinate role works"
+        self._imbueRole(mysql.replicant.roles.Final(self.main))
 
     def testRelayRole(self):
-        "Test that the slave role works"
-        self._imbueRole(mysql.replicant.roles.Relay(self.master))
+        "Test that the subordinate role works"
+        self._imbueRole(mysql.replicant.roles.Relay(self.main))
 
 def suite(options={}):
     if not options['deployment']:

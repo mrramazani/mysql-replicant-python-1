@@ -58,7 +58,7 @@ class TestLoadBalancer(unittest.TestCase):
     "Class to test the load balancer functions."
 
     def setUp(self):
-        from my_deployment import common, master, slaves
+        from my_deployment import common, main, subordinates
         common.sql("DROP DATABASE IF EXISTS common")
         common.sql("CREATE DATABASE common")
         common.sql(_CREATE_TABLE)
@@ -70,23 +70,23 @@ class TestLoadBalancer(unittest.TestCase):
         common.sql("DROP DATABASE common")
 
     def testServers(self):
-        from my_deployment import common, master, slaves
+        from my_deployment import common, main, subordinates
 
         try:
-            pool_add(common, master, ['READ', 'WRITE'])
+            pool_add(common, main, ['READ', 'WRITE'])
         except AlreadyInPoolError:
-            pool_set(common, master, ['READ', 'WRITE'])
+            pool_set(common, main, ['READ', 'WRITE'])
 
-        for slave in slaves:
+        for subordinate in subordinates:
             try:
-                pool_add(common, slave, ['READ'])
+                pool_add(common, subordinate, ['READ'])
             except AlreadyInPoolError:
-                pool_set(common, slave, ['READ'])
+                pool_set(common, subordinate, ['READ'])
 
         for row in common.sql("SELECT * FROM nodes", db="common"):
-            if row['port'] == master.port:
+            if row['port'] == main.port:
                 self.assertEqual(row['type'], 'READ,WRITE')
-            elif row['port'] in [slave.port for slave in slaves]:
+            elif row['port'] in [subordinate.port for subordinate in subordinates]:
                 self.assertEqual(row['type'], 'READ')
 
 if __name__ == '__main__':

@@ -25,25 +25,25 @@ _CHANGE_MASTER_TO_NO_POS = """CHANGE MASTER TO
    MASTER_HOST=%s, MASTER_PORT=%s,
    MASTER_USER=%s, MASTER_PASSWORD=%s"""
 
-def change_master(slave, master, position=None):
-    """Configure replication to read from a master and position."""
+def change_main(subordinate, main, position=None):
+    """Configure replication to read from a main and position."""
     try:
-        user = master.repl_user
+        user = main.repl_user
     except AttributeError:
-        raise _errors.NotMasterError
+        raise _errors.NotMainError
 
-    slave.sql("STOP SLAVE")
+    subordinate.sql("STOP SLAVE")
     if position:
-        slave.sql(_CHANGE_MASTER_TO,
-                  (master.host, master.port, user.name, user.passwd,
+        subordinate.sql(_CHANGE_MASTER_TO,
+                  (main.host, main.port, user.name, user.passwd,
                    position.file, position.pos))
     else:
-        slave.sql(_CHANGE_MASTER_TO_NO_POS,
-                  (master.host, master.port, user.name, user.passwd))
-    slave.sql("START SLAVE")
-    slave.disconnect()
+        subordinate.sql(_CHANGE_MASTER_TO_NO_POS,
+                  (main.host, main.port, user.name, user.passwd))
+    subordinate.sql("START SLAVE")
+    subordinate.disconnect()
 
-def fetch_master_position(server):
+def fetch_main_position(server):
     """Get the position of the next event that will be written to
     the binary log"""
 
@@ -52,10 +52,10 @@ def fetch_master_position(server):
         result = server.sql("SHOW MASTER STATUS")
         return Position(result["File"], result["Position"])
     except _errors.EmptyRowError:
-        raise _errors.NotMasterError
+        raise _errors.NotMainError
 
-def fetch_slave_position(server):
-    """Get the position of the next event to be read from the master.
+def fetch_subordinate_position(server):
+    """Get the position of the next event to be read from the main.
 
     """
 
@@ -63,41 +63,41 @@ def fetch_slave_position(server):
 
     try:
         result = server.sql("SHOW SLAVE STATUS")
-        return Position(result["Relay_Master_Log_File"],
-                        result["Exec_Master_Log_Pos"])
+        return Position(result["Relay_Main_Log_File"],
+                        result["Exec_Main_Log_Pos"])
     except _errors.EmptyRowError:
-        raise _errors.NotSlaveError
+        raise _errors.NotSubordinateError
 
 _START_SLAVE_UNTIL = """START SLAVE UNTIL
     MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"""
 
 _MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s, %s)"
 
-def slave_wait_for_pos(slave, position):
-    slave.sql(_MASTER_POS_WAIT, (position.file, position.pos))
+def subordinate_wait_for_pos(subordinate, position):
+    subordinate.sql(_MASTER_POS_WAIT, (position.file, position.pos))
 
-def slave_status_wait_until(server, field, pred):
+def subordinate_status_wait_until(server, field, pred):
     while True:
         row = server.sql("SHOW SLAVE STATUS")
         value = row[field]
         if pred(value):
             return value
 
-def slave_wait_and_stop(slave, position):
+def subordinate_wait_and_stop(subordinate, position):
     """Set up replication so that it will wait for the position to be
     reached and then stop replication exactly at that binlog
     position."""
-    slave.sql("STOP SLAVE")
-    slave.sql(_START_SLAVE_UNTIL, (position.file, position.pos))
-    slave.sql(_MASTER_POS_WAIT, (position.file, position.pos))
+    subordinate.sql("STOP SLAVE")
+    subordinate.sql(_START_SLAVE_UNTIL, (position.file, position.pos))
+    subordinate.sql(_MASTER_POS_WAIT, (position.file, position.pos))
     
-def slave_wait_for_empty_relay_log(server):
+def subordinate_wait_for_empty_relay_log(server):
     "Wait until the relay log is empty and return."
     result = server.sql("SHOW SLAVE STATUS")
-    fname = result["Master_Log_File"]
-    pos = result["Read_Master_Log_Pos"]
+    fname = result["Main_Log_File"]
+    pos = result["Read_Main_Log_Pos"]
     if server.sql(_MASTER_POS_WAIT, (fname, pos)) is None:
-        raise _errors.SlaveNotRunningError
+        raise _errors.SubordinateNotRunningError
 
 def fetch_binlog(server, binlog_files=None,
                  start_datetime=None, stop_datetime=None):
@@ -126,28 +126,28 @@ def fetch_binlog(server, binlog_files=None,
         command.append("--stop-datetime=%s" % (stop_datetime))
     return iter(Popen(command + binlog_files, stdout=PIPE).stdout)
 
-def clone(slave, source, master = None):
-    """Function to create a new slave by cloning either a master or a
-    slave."""
+def clone(subordinate, source, main = None):
+    """Function to create a new subordinate by cloning either a main or a
+    subordinate."""
 
     backup_name = source.host + ".tar.gz"
-    if master is not None:
+    if main is not None:
         source.sql("STOP SLAVE")
     lock_database(source)
-    if master is None:
-        position = fetch_master_position(source)
+    if main is None:
+        position = fetch_main_position(source)
     else:
-        position = fetch_slave_position(source)
+        position = fetch_subordinate_position(source)
     source.ssh("tar Pzcf " + backup_name + " /usr/var/mysql")
-    if master is not None:
+    if main is not None:
         source.sql("START SLAVE")
-    subprocess.call(["scp", source.host + ":" + backup_name, slave.host + ":."])
-    slave.ssh("tar Pzxf " + backup_name + " /usr/var/mysql")
-    if master is None:
-        change_master(slave, source, position)
+    subprocess.call(["scp", source.host + ":" + backup_name, subordinate.host + ":."])
+    subordinate.ssh("tar Pzxf " + backup_name + " /usr/var/mysql")
+    if main is None:
+        change_main(subordinate, source, position)
     else:
-        change_master(slave, master, position)
-    slave.sql("START SLAVE")
+        change_main(subordinate, main, position)
+    subordinate.sql("START SLAVE")
 
 _START_SLAVE_UNTIL = "START SLAVE UNTIL MASTER_LOG_FILE=%s, MASTER_LOG_POS=%s"
 _MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s,%s)"
@@ -155,6 +155,6 @@ _MASTER_POS_WAIT = "SELECT MASTER_POS_WAIT(%s,%s)"
 def replicate_to_position(server, pos):
     """Run replication until it reaches 'pos'.
 
-    The function will block until the slave have reached the position."""
+    The function will block until the subordinate have reached the position."""
     server.sql(_START_SLAVE_UNTIL, (pos.file, pos.pos))
     server.sql(_MASTER_POS_WAIT, (pos.file, pos.pos))

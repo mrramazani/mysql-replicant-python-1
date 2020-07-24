@@ -35,7 +35,7 @@ class PhysicalBackup(BackupImage):
     def backup_server(self, server, database="*"):
 
         from mysql.replicant.commands import (
-            fetch_master_position,
+            fetch_main_position,
             )
 
         datadir = server.fetch_config().get('datadir')
@@ -43,7 +43,7 @@ class PhysicalBackup(BackupImage):
             database = [d for d in os.listdir(datadir)
                   if os.path.isdir(os.path.join(datadir, d))]
         server.sql("FLUSH TABLES WITH READ LOCK")
-        position = fetch_master_position(server)
+        position = fetch_main_position(server)
         if server.host != "localhost":
             path = os.path.basename(self.url.path)
         else:

@@ -22,17 +22,17 @@ class NoOptionError(Error):
     "Exception raised when ConfigManager does not find the option"
     pass
 
-class SlaveNotRunningError(Error):
-    "Exception raised when slave is not running but were expected to run"
+class SubordinateNotRunningError(Error):
+    "Exception raised when subordinate is not running but were expected to run"
     pass
 
-class NotMasterError(Error):
-    """Exception raised when the server is not a master and the
+class NotMainError(Error):
+    """Exception raised when the server is not a main and the
     operation is illegal."""
     pass
 
-class NotSlaveError(Error):
-    """Exception raised when the server is not a slave and the
+class NotSubordinateError(Error):
+    """Exception raised when the server is not a subordinate and the
     operation is illegal."""
     pass
 

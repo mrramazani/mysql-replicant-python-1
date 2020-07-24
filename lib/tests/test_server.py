@@ -14,14 +14,14 @@ import re
 import unittest
 
 from mysql.replicant.errors import (
-    NotMasterError,
-    NotSlaveError,
+    NotMainError,
+    NotSubordinateError,
     )
 
 from mysql.replicant.commands import (
-    change_master,
-    fetch_master_position,
-    fetch_slave_position,
+    change_main,
+    fetch_main_position,
+    fetch_subordinate_position,
     lock_database,
     unlock_database,
     )
@@ -37,25 +37,25 @@ class TestServerBasics(unittest.TestCase):
     def __init__(self, methodName, options):
         super(TestServerBasics, self).__init__(methodName)
         my = tests.utils.load_deployment(options['deployment'])
-        self.master = my.master
-        self.slave = my.slaves[0]
-        self.slaves = my.slaves
+        self.main = my.main
+        self.subordinate = my.subordinates[0]
+        self.subordinates = my.subordinates
 
     def setUp(self):
         pass
 
     def testConfig(self):
         "Get some configuration information from the server"
-        self.assertEqual(self.master.host, "localhost")
-        self.assertEqual(self.master.port, 3307)
-        self.assertEqual(self.master.socket, '/var/run/mysqld/mysqld1.sock')
+        self.assertEqual(self.main.host, "localhost")
+        self.assertEqual(self.main.port, 3307)
+        self.assertEqual(self.main.socket, '/var/run/mysqld/mysqld1.sock')
 
     def testFetchReplace(self):
         "Fetching a configuration file, adding some options, and replacing it"
-        config = self.master.fetch_config(os.path.join(here, 'test.cnf'))
+        config = self.main.fetch_config(os.path.join(here, 'test.cnf'))
         self.assertEqual(config.get('user'), 'mysql')
-        self.assertEqual(config.get('log-bin'), '/var/log/mysql/master-bin')
-        self.assertEqual(config.get('slave-skip-start'), None)
+        self.assertEqual(config.get('log-bin'), '/var/log/mysql/main-bin')
+        self.assertEqual(config.get('subordinate-skip-start'), None)
         config.set('no-value')
         self.assertEqual(config.get('no-value'), None)
         config.set('with-int-value', 4711)
@@ -63,7 +63,7 @@ class TestServerBasics(unittest.TestCase):
         config.set('with-string-value', 'Careful with that axe, Eugene!')
         self.assertEqual(config.get('with-string-value'),
                          'Careful with that axe, Eugene!')
-        self.master.replace_config(config, os.path.join(here, 'test-new.cnf'))
+        self.main.replace_config(config, os.path.join(here, 'test-new.cnf'))
         lines1 = file(os.path.join(here, 'test.cnf')).readlines()
         lines2 = file(os.path.join(here, 'test-new.cnf')).readlines()
         lines1 += ["\n", "no-value\n", "with-int-value = 4711\n",
@@ -76,39 +76,39 @@ class TestServerBasics(unittest.TestCase):
         
     def testSsh(self):
         "Testing ssh() call"
-        self.assertEqual(''.join(self.master.ssh(["echo", "-n", "Hello"])),
+        self.assertEqual(''.join(self.main.ssh(["echo", "-n", "Hello"])),
                          "Hello")
  
     def testSql(self):
         "Testing (read-only) SQL execution"
-        result = self.master.sql("select 'Hello' as val")['val']
+        result = self.main.sql("select 'Hello' as val")['val']
         self.assertEqual(result, "Hello")
 
     def testLockUnlock(self):
         "Test that the lock and unlock functions can be called"
-        lock_database(self.master)
-        unlock_database(self.master)
+        lock_database(self.main)
+        unlock_database(self.main)
 
-    def testGetMasterPosition(self):
-        "Fetching master position from the master and checking format"
+    def testGetMainPosition(self):
+        "Fetching main position from the main and checking format"
         try:
-            position = fetch_master_position(self.master)
+            position = fetch_main_position(self.main)
             self.assertTrue(position is None or _POS_CRE.match(str(position)),
                             "Position '%s' is not correct" % (str(position)))
-        except NotMasterError:
+        except NotMainError:
             self.fail(
-                "Unable to test fetch_master_position since"
-                " master is not configured as a master"
+                "Unable to test fetch_main_position since"
+                " main is not configured as a main"
                 )
 
-    def testGetSlavePosition(self):
-        "Fetching slave positions from the slaves and checking format"
-        for slave in self.slaves:
+    def testGetSubordinatePosition(self):
+        "Fetching subordinate positions from the subordinates and checking format"
+        for subordinate in self.subordinates:
             try:
-                position = fetch_slave_position(slave)
+                position = fetch_subordinate_position(subordinate)
                 self.assertTrue(_POS_CRE.match(str(position)),
                                 "Incorrect position '%s'" % (str(position)))
-            except NotSlaveError:
+            except NotSubordinateError:
                 pass
 
 def suite(options={}):
